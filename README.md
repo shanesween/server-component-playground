@@ -1,4 +1,6 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Server Components & SSR Playground
+
+This is a [Next.js](https://nextjs.org) project designed to help you understand Server Components and Server-Side Rendering concepts through practical examples.
 
 ## Getting Started
 
@@ -16,9 +18,49 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## What Each Demo Shows
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### `/server-components` - Demonstrates React Server Components:
+- Components that run on the server and render to HTML
+- Can directly access databases/APIs without client-side fetching
+- Send only HTML to browser (no JavaScript for the component itself)
+- Uses `async/await` directly in components
+
+### `/client-components` - Shows traditional Client Components:
+- Must have `'use client'` directive
+- Run in browser after hydration
+- Can use hooks, event handlers, browser APIs
+- Interactive and respond to user events
+
+### `/data-fetching` - Compares RSC vs Client data patterns:
+- Server side: Data fetched during render, available in initial HTML
+- Client side: Data fetched after page loads, requires loading states
+
+### `/hydration` - Demonstrates the SSR → Interactive transition:
+- Shows how server-rendered HTML becomes interactive
+- Visualizes the hydration process with status indicators
+
+## React Server Components vs SSR
+
+Understanding the key difference between traditional SSR and React Server Components:
+
+### Traditional SSR (Server-Side Rendering):
+- Renders React components to HTML on the server
+- Sends HTML + JavaScript to client
+- Client re-renders the same components for hydration
+- **Same code runs twice** (server + client)
+
+### React Server Components (RSC):
+- Components run **only** on the server
+- Send rendered HTML (not JavaScript) to client
+- **Never run on the client** - no hydration for server components
+- Can mix server components (no JS) + client components (with JS)
+
+## Important Notes
+
+All examples in this playground use **React Server Components**! Next.js App Router defaults to RSC. Notice in `/server-components/page.tsx` there's no `'use client'` - it's a true server component that never runs in the browser.
+
+The `/server-components` demo shows pure RSC, while `/client-components` shows components that need `'use client'` to run in the browser. Next.js intelligently sends only the client component JavaScript to the browser, not the server component code.
 
 ## Learn More
 
