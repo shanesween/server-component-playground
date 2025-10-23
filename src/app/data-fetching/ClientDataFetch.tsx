@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Skeleton from './Skeleton';
 
 interface Post {
   id: number;
@@ -16,6 +17,7 @@ interface ClientData {
 
 // Simulate a client-side API call
 async function fetchClientData(): Promise<ClientData> {
+  // Slightly longer delay to demonstrate client-side loading states are more visible
   await new Promise(resolve => setTimeout(resolve, 1200));
   
   return {
@@ -55,20 +57,7 @@ export default function ClientDataFetch() {
   };
 
   if (loading) {
-    return (
-      <div className="bg-purple-50 p-4 rounded-lg">
-        <div className="animate-pulse">
-          <div className="h-4 bg-purple-200 rounded mb-2"></div>
-          <div className="h-3 bg-purple-200 rounded mb-4"></div>
-          <div className="space-y-2">
-            <div className="h-16 bg-purple-200 rounded"></div>
-            <div className="h-16 bg-purple-200 rounded"></div>
-            <div className="h-16 bg-purple-200 rounded"></div>
-          </div>
-        </div>
-        <p className="text-purple-600 text-sm mt-2">Loading client data...</p>
-      </div>
-    );
+    return <Skeleton variant="client" />;
   }
 
   return (

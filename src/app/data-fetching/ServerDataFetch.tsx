@@ -1,6 +1,6 @@
 // Server Component - fetches data at build time or request time
 async function fetchServerData() {
-  // Simulate API call
+  // Simulate typical database query time - consistent with other server components
   await new Promise(resolve => setTimeout(resolve, 800));
   
   return {

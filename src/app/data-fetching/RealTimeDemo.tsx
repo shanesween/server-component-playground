@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Skeleton from './Skeleton';
 
 interface RealTimeData {
   timestamp: string;
@@ -67,6 +68,11 @@ export default function RealTimeDemo({ initialData }: Props) {
       case 'connecting': return '🟡';
     }
   };
+
+  // Show skeleton while connecting (first few seconds)
+  if (data.status === 'connecting' && data.updateCount === 0) {
+    return <Skeleton variant="hybrid" title="CONNECTING..." />;
+  }
 
   return (
     <div className="bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded-lg border-l-4 border-green-500">

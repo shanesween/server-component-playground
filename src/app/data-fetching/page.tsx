@@ -2,9 +2,11 @@ import { Suspense } from 'react';
 import ServerDataFetch from './ServerDataFetch';
 import ClientDataFetch from './ClientDataFetch';
 import RealTimeDemo from './RealTimeDemo';
+import Skeleton from './Skeleton';
 
 async function getInitialRealTimeData() {
-  await new Promise(resolve => setTimeout(resolve, 500));
+  // Same delay as other server components for fair comparison
+  await new Promise(resolve => setTimeout(resolve, 800));
   return {
     timestamp: new Date().toISOString(),
     value: Math.floor(Math.random() * 1000)
@@ -21,11 +23,7 @@ export default async function DataFetchingPage() {
       <div className="grid md:grid-cols-2 gap-8 mb-8">
         <div>
           <h2 className="text-2xl font-semibold mb-4 text-blue-600">Server-Side Fetching</h2>
-          <Suspense fallback={
-            <div className="bg-blue-50 p-4 rounded-lg animate-pulse">
-              Loading server data...
-            </div>
-          }>
+          <Suspense fallback={<Skeleton variant="server" />}>
             <ServerDataFetch />
           </Suspense>
         </div>

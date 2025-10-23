@@ -8,7 +8,8 @@ import { Suspense } from 'react';
 
 // Simulate a database call
 async function getServerData() {
-  await new Promise(resolve => setTimeout(resolve, 1000));
+  // Simulate typical database query time - consistent across all server components
+  await new Promise(resolve => setTimeout(resolve, 800));
   return {
     timestamp: new Date().toISOString(),
     serverInfo: 'This data was fetched on the server!',
