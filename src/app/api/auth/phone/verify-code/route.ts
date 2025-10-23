@@ -3,29 +3,14 @@ import { db } from '@/lib/db';
 import { smsVerificationCodes, users } from '@/lib/db/schema';
 import { eq, and, gt } from 'drizzle-orm';
 import { verifyPhoneCode, createUserFromPhone } from '@/lib/services/auth';
+import { formatPhoneNumber } from '@/lib/services/sms';
 
-// Format phone number to E.164 format (same as send-code)
-function formatPhoneNumber(phone: string): string {
-    const digits = phone.replace(/\D/g, '');
-
-    if (digits.length === 10) {
-        return `+1${digits}`;
-    }
-
-    if (digits.startsWith('1') && digits.length === 11) {
-        return `+${digits}`;
-    }
-
-    if (phone.startsWith('+')) {
-        return phone;
-    }
-
-    return `+1${digits}`;
-}
 
 export async function POST(request: NextRequest) {
     try {
+        console.log('📱 Verify request received');
         const { phoneNumber, code } = await request.json();
+        console.log('📱 Verify - Phone:', phoneNumber, 'Code:', code);
 
         if (!phoneNumber || !code) {
             return NextResponse.json(
@@ -35,6 +20,7 @@ export async function POST(request: NextRequest) {
         }
 
         const formattedPhone = formatPhoneNumber(phoneNumber);
+        console.log('📱 Verify - Formatted phone:', formattedPhone);
 
         // Find the verification code
         const verificationRecord = await db
@@ -103,7 +89,7 @@ export async function POST(request: NextRequest) {
             }
             user = createResult.data;
         } else {
-            // Update existing user and verify
+            // Update existing user
             await db
                 .update(users)
                 .set({
@@ -112,15 +98,15 @@ export async function POST(request: NextRequest) {
                 })
                 .where(eq(users.id, existingUser[0].id));
 
-            // Get updated user data
-            const verifyResult = await verifyPhoneCode({ phoneNumber: formattedPhone, code });
-            if (!verifyResult.success) {
-                return NextResponse.json(
-                    { success: false, error: verifyResult.error },
-                    { status: 500 }
-                );
-            }
-            user = verifyResult.data;
+            // Return the updated user data
+            user = {
+                id: existingUser[0].id,
+                phoneNumber: existingUser[0].phoneNumber,
+                firstName: existingUser[0].firstName,
+                lastName: existingUser[0].lastName,
+                displayName: existingUser[0].displayName,
+                onboardingCompleted: existingUser[0].onboardingCompleted,
+            };
         }
 
         return NextResponse.json({
@@ -135,6 +121,11 @@ export async function POST(request: NextRequest) {
 
     } catch (error) {
         console.error('Error verifying code:', error);
+        console.error('Error details:', {
+            message: error instanceof Error ? error.message : 'Unknown error',
+            stack: error instanceof Error ? error.stack : undefined,
+            name: error instanceof Error ? error.name : undefined
+        });
         return NextResponse.json(
             { success: false, error: 'Failed to verify code' },
             { status: 500 }

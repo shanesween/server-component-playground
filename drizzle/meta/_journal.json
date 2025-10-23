@@ -50,6 +50,13 @@
       "when": 1761258273806,
       "tag": "0006_lush_tag",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1761260368496,
+      "tag": "0007_zippy_micromax",
+      "breakpoints": true
     }
   ]
 }
