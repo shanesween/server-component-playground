@@ -1,19 +1,21 @@
 # Twilio SMS Integration Guide
 
-This document outlines the SMS integration implementation for phone-based authentication using Twilio.
+This document outlines the SMS integration implementation for phone-based authentication using Twilio with NextAuth.js.
 
 ## Overview
 
-The SMS integration allows users to sign in using their phone number by receiving a 6-digit verification code via SMS.
+The SMS integration allows users to sign in using their phone number by receiving a 6-digit verification code via SMS. The system uses NextAuth.js for session management with a custom phone provider for authentication.
 
 ## Features
 
 - ✅ **Twilio SMS Integration**: Real SMS sending via Twilio API
+- ✅ **NextAuth.js Integration**: Custom phone provider for NextAuth.js sessions
 - ✅ **Rate Limiting**: Prevents spam and abuse
 - ✅ **Security**: Enhanced attempt tracking and validation
 - ✅ **Development Mode**: Console logging for testing without SMS costs
 - ✅ **Error Handling**: Comprehensive error handling and retry logic
 - ✅ **Status Tracking**: SMS delivery status monitoring
+- ✅ **Onboarding Flow**: Automatic redirect to onboarding for new users
 
 ## Setup Instructions
 
@@ -47,6 +49,47 @@ The integration uses the existing `sms_verification_codes` table with these fiel
 - `verified_at`: Verification completion timestamp
 - `ip_address`: Client IP for rate limiting
 
+## NextAuth.js Integration
+
+### Custom Phone Provider
+
+The system uses a custom NextAuth.js credentials provider for phone authentication:
+
+```typescript
+// src/lib/auth/phone-provider.ts
+export const phoneProvider: NextAuthOptions["providers"][0] = {
+  id: "phone",
+  name: "Phone",
+  type: "credentials",
+  credentials: {
+    phoneNumber: { label: "Phone Number", type: "text" },
+    code: { label: "Verification Code", type: "text" },
+  },
+  async authorize(credentials) {
+    // Verification logic with SMS code validation
+    // Creates or updates user in database
+    // Returns user object for NextAuth session
+  },
+};
+```
+
+### Session Management
+
+The system automatically:
+
+- Creates NextAuth sessions upon successful phone verification
+- Tracks user onboarding status in the session
+- Redirects new users to onboarding flow
+- Manages user authentication state across the application
+
+### Onboarding Integration
+
+After successful phone verification:
+
+1. **New Users**: Redirected to `/onboarding` for profile setup
+2. **Existing Users**: Redirected to main application
+3. **Session Persistence**: User data available throughout the app via NextAuth session
+
 ## API Endpoints
 
 ### Send Verification Code
@@ -75,18 +118,32 @@ POST /api/auth/phone/send-code
 
 **Note:** In development mode, the actual verification code is returned in the response for testing purposes. In production, the code is sent via SMS only.
 
-### Verify Code
+### Verify Code (NextAuth.js Integration)
 
-```
-POST /api/auth/phone/verify-code
-```
+The phone verification now uses NextAuth.js with a custom phone provider. The verification process creates a NextAuth session instead of returning user data directly.
 
-**Request:**
+**Frontend Implementation:**
 
-```json
-{
-  "phoneNumber": "+1234567890",
-  "code": "123456"
+```javascript
+import { signIn } from "next-auth/react";
+
+const result = await signIn("phone", {
+  phoneNumber: "+1234567890",
+  code: "123456",
+  redirect: false,
+});
+
+if (result?.ok) {
+  // Check if user needs onboarding
+  const userResponse = await fetch("/api/auth/me");
+  if (userResponse.ok) {
+    const userData = await userResponse.json();
+    if (!userData.onboardingCompleted) {
+      router.push("/onboarding");
+    } else {
+      router.push("/");
+    }
+  }
 }
 ```
 
@@ -94,15 +151,38 @@ POST /api/auth/phone/verify-code
 
 ```json
 {
+  "ok": true,
+  "error": null,
+  "status": 200,
+  "url": null
+}
+```
+
+**Note:** The actual user data is now accessed via the NextAuth session through `/api/auth/me` endpoint.
+
+### Get Current User
+
+```
+GET /api/auth/me
+```
+
+**Response:**
+
+```json
+{
   "success": true,
-  "message": "Phone number verified successfully",
-  "user": {
+  "data": {
     "id": "user_id",
     "phoneNumber": "+1234567890",
+    "firstName": "John",
+    "lastName": "Doe",
+    "displayName": "John Doe",
     "onboardingCompleted": false
   }
 }
 ```
+
+**Note:** This endpoint requires a valid NextAuth session. Returns 401 if not authenticated.
 
 ### SMS Status Check
 
@@ -235,6 +315,34 @@ The integration includes comprehensive error handling for:
 - Service availability monitoring via `/api/sms/status-check`
 - IP address logging for security monitoring
 
+## Onboarding Flow
+
+### New User Journey
+
+1. **Phone Verification**: User enters phone number and receives SMS code
+2. **Code Verification**: User enters 6-digit code via NextAuth.js phone provider
+3. **Session Creation**: NextAuth.js creates authenticated session
+4. **Onboarding Check**: System checks `onboardingCompleted` status
+5. **Redirect Logic**:
+   - New users → `/onboarding` (3-step flow)
+   - Existing users → `/` (main app)
+
+### Onboarding Steps
+
+1. **Welcome Screen**: Animated intro to "Strictly Sports"
+2. **Name Input**: First name collection with validation
+3. **Team Selection**: Choose favorite NFL teams from all 32 teams
+4. **Completion**: Updates user profile and team relationships
+
+### Onboarding API Endpoints
+
+```
+POST /api/onboarding/complete
+POST /api/onboarding/teams
+```
+
+These endpoints require NextAuth.js session authentication and update user data and team preferences.
+
 ## Testing
 
 ### Development Testing
@@ -244,6 +352,8 @@ The integration includes comprehensive error handling for:
 3. Use the send-code endpoint which returns codes in development mode
 4. Verify rate limiting and attempt tracking works correctly
 5. Test the status-check endpoint: `GET /api/sms/status-check`
+6. **Test NextAuth Integration**: Verify session creation and onboarding redirects
+7. **Test Onboarding Flow**: Complete the 3-step onboarding process
 
 ### Production Testing
 
@@ -252,6 +362,8 @@ The integration includes comprehensive error handling for:
 3. Test rate limiting and security features
 4. Monitor delivery status callbacks at `/api/sms/status`
 5. Verify codes are not returned in API responses
+6. **Test Complete Flow**: Phone verification → Onboarding → Dashboard access
+7. **Test Session Persistence**: Verify user stays logged in across page refreshes
 
 ## Cost Considerations
 
@@ -277,16 +389,34 @@ The integration includes comprehensive error handling for:
    - Verify phone number isn't blocked
 
 3. **Code Verification Failing**
+
    - Check code expiration (5 minutes)
    - Verify code hasn't been used (single-use only)
    - Check attempt limits (max 3 attempts per code)
    - Verify phone number format matches the one used to send the code
+
+4. **NextAuth.js Session Issues**
+
+   - Verify NextAuth.js configuration is correct
+   - Check that the phone provider is properly registered
+   - Ensure session callbacks are working correctly
+   - Verify database connection for session storage
+
+5. **Onboarding Redirect Issues**
+   - Check `onboardingCompleted` field in user record
+   - Verify NextAuth session contains user data
+   - Test `/api/auth/me` endpoint returns correct user data
+   - Ensure onboarding page is accessible to authenticated users
 
 ### Debug Endpoints
 
 - `GET /api/sms/status-check` - Check service configuration
 - `POST /api/sms/test` - Test SMS sending (development only)
 - `POST /api/sms/status` - Twilio status callback endpoint (production only)
+- `GET /api/auth/me` - Get current user data (requires authentication)
+- `GET /api/seed/nfl-teams` - Check NFL teams in database
+- `POST /api/onboarding/complete` - Complete onboarding (requires authentication)
+- `POST /api/onboarding/teams` - Save favorite teams (requires authentication)
 
 ## Security Best Practices
 
