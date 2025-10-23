@@ -20,7 +20,7 @@ async function getServerData() {
 // Another async server component
 async function ServerDataDisplay() {
   const data = await getServerData();
-  
+
   return (
     <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
       <h3 className="font-semibold text-blue-800">Server Component Data:</h3>
@@ -38,7 +38,7 @@ export default function ServerComponentsPage() {
   return (
     <div className="max-w-4xl mx-auto p-8">
       <h1 className="text-3xl font-bold mb-6">Server Components Demo</h1>
-      
+
       <div className="space-y-6">
         <div className="bg-gray-50 p-4 rounded-lg">
           <h2 className="text-xl font-semibold mb-3">What are Server Components?</h2>
