@@ -19,6 +19,7 @@ export default function LearningLayout({
               <Link href="/learning/client-components" className="hover:text-blue-600">Client Components</Link>
               <Link href="/learning/data-fetching" className="hover:text-blue-600">Data Fetching</Link>
               <Link href="/learning/hydration" className="hover:text-blue-600">Hydration</Link>
+              <Link href="/learning/database-auth" className="hover:text-blue-600">Database & Auth</Link>
             </div>
           </div>
         </div>

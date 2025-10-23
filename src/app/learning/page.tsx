@@ -18,13 +18,13 @@ export default function LearningHome() {
             Next.js Learning Lab
           </h1>
           <p className="text-lg text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto">
-            Learn Next.js 16 features, React Server Components, and modern web development 
+            Learn Next.js 16 features, React Server Components, and modern web development
             patterns through practical examples and real-world implementations.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6 mb-12">
-          <Link 
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+          <Link
             href="/learning/server-components"
             className="bg-blue-50 hover:bg-blue-100 p-6 rounded-lg border border-blue-200 transition-colors"
           >
@@ -36,7 +36,7 @@ export default function LearningHome() {
             </p>
           </Link>
 
-          <Link 
+          <Link
             href="/learning/client-components"
             className="bg-purple-50 hover:bg-purple-100 p-6 rounded-lg border border-purple-200 transition-colors"
           >
@@ -48,7 +48,7 @@ export default function LearningHome() {
             </p>
           </Link>
 
-          <Link 
+          <Link
             href="/learning/data-fetching"
             className="bg-green-50 hover:bg-green-100 p-6 rounded-lg border border-green-200 transition-colors"
           >
@@ -60,7 +60,7 @@ export default function LearningHome() {
             </p>
           </Link>
 
-          <Link 
+          <Link
             href="/learning/hydration"
             className="bg-orange-50 hover:bg-orange-100 p-6 rounded-lg border border-orange-200 transition-colors"
           >
@@ -71,6 +71,18 @@ export default function LearningHome() {
               Understand how static HTML becomes interactive through hydration.
             </p>
           </Link>
+
+          <Link
+            href="/learning/database-auth"
+            className="bg-indigo-50 hover:bg-indigo-100 p-6 rounded-lg border border-indigo-200 transition-colors"
+          >
+            <h2 className="text-xl font-semibold text-indigo-800 mb-2">
+              🗄️ Database & Authentication
+            </h2>
+            <p className="text-indigo-600">
+              Learn modern database architecture with Neon DB, Drizzle ORM, and dual authentication systems.
+            </p>
+          </Link>
         </div>
 
         <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-900 p-8 rounded-lg">
@@ -78,10 +90,10 @@ export default function LearningHome() {
             🚀 Next.js 16 Features (Coming Soon)
           </h2>
           <p className="text-gray-600 dark:text-gray-400 mb-4">
-            This learning lab is being built in public as part of a real Apple Sports clone project. 
+            This learning lab is being built in public as part of a real Apple Sports clone project.
             New features and learnings are added as we implement them.
           </p>
-          
+
           <div className="grid md:grid-cols-2 gap-4">
             <div className="bg-white dark:bg-gray-800 p-4 rounded border">
               <h3 className="font-semibold mb-2">🎯 Cache Components</h3>
@@ -111,7 +123,7 @@ export default function LearningHome() {
         </div>
 
         <div className="mt-8 text-center">
-          <Link 
+          <Link
             href="/"
             className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
