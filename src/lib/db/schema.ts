@@ -1,16 +1,53 @@
 import { pgTable, text, integer, timestamp, boolean, serial, varchar, unique } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
-// Users table
+// Users table (updated for OAuth support)
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
   email: varchar('email', { length: 255 }).notNull().unique(),
-  password: text('password').notNull(),
-  firstName: varchar('first_name', { length: 100 }).notNull(),
-  lastName: varchar('last_name', { length: 100 }).notNull(),
+  password: text('password'), // Made optional for OAuth users
+  firstName: varchar('first_name', { length: 100 }),
+  lastName: varchar('last_name', { length: 100 }),
+  image: text('image'), // For OAuth profile pictures
+  emailVerified: timestamp('email_verified'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
+
+// OAuth Accounts table
+export const accounts = pgTable('accounts', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  type: varchar('type', { length: 50 }).notNull(), // 'oauth', 'email'
+  provider: varchar('provider', { length: 50 }).notNull(), // 'google', 'credentials'
+  providerAccountId: varchar('provider_account_id', { length: 255 }).notNull(),
+  refreshToken: text('refresh_token'),
+  accessToken: text('access_token'),
+  expiresAt: integer('expires_at'),
+  tokenType: varchar('token_type', { length: 50 }),
+  scope: varchar('scope', { length: 255 }),
+  idToken: text('id_token'),
+  sessionState: varchar('session_state', { length: 255 }),
+}, (table) => ([
+  unique().on(table.provider, table.providerAccountId),
+]));
+
+// Sessions table
+export const sessions = pgTable('sessions', {
+  id: serial('id').primaryKey(),
+  sessionToken: varchar('session_token', { length: 255 }).notNull().unique(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  expires: timestamp('expires').notNull(),
+});
+
+// Verification tokens table
+export const verificationTokens = pgTable('verification_tokens', {
+  identifier: varchar('identifier', { length: 255 }).notNull(),
+  token: varchar('token', { length: 255 }).notNull(),
+  expires: timestamp('expires').notNull(),
+}, (table) => ([
+  unique().on(table.identifier, table.token),
+]));
 
 // Teams table (supports multiple sports)
 export const teams = pgTable('teams', {
@@ -86,6 +123,22 @@ export const usersRelations = relations(users, ({ many, one }) => ({
     fields: [users.id],
     references: [userPreferences.userId],
   }),
+  accounts: many(accounts),
+  sessions: many(sessions),
+}));
+
+export const accountsRelations = relations(accounts, ({ one }) => ({
+  user: one(users, {
+    fields: [accounts.userId],
+    references: [users.id],
+  }),
+}));
+
+export const sessionsRelations = relations(sessions, ({ one }) => ({
+  user: one(users, {
+    fields: [sessions.userId],
+    references: [users.id],
+  }),
 }));
 
 export const teamsRelations = relations(teams, ({ many }) => ({
@@ -128,6 +181,15 @@ export const gamesCacheRelations = relations(gamesCache, ({ one }) => ({
 // Type exports
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
+
+export type Account = typeof accounts.$inferSelect;
+export type NewAccount = typeof accounts.$inferInsert;
+
+export type Session = typeof sessions.$inferSelect;
+export type NewSession = typeof sessions.$inferInsert;
+
+export type VerificationToken = typeof verificationTokens.$inferSelect;
+export type NewVerificationToken = typeof verificationTokens.$inferInsert;
 
 export type Team = typeof teams.$inferSelect;
 export type NewTeam = typeof teams.$inferInsert;

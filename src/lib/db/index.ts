@@ -1,8 +1,9 @@
-import { drizzle } from 'drizzle-orm/vercel-postgres';
-import { sql } from '@vercel/postgres';
+import { drizzle } from 'drizzle-orm/neon-http';
+import { neon } from '@neondatabase/serverless';
 import * as schema from './schema';
 
 // Create the database connection
+const sql = neon(process.env.DATABASE_URL!);
 export const db = drizzle(sql, { schema });
 
 // Export schema and types
@@ -15,9 +16,9 @@ export async function checkDatabaseConnection() {
     await sql`SELECT 1`;
     return { connected: true, error: null };
   } catch (error) {
-    return { 
-      connected: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+    return {
+      connected: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
     };
   }
 }
