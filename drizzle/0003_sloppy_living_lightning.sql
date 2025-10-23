@@ -1,0 +1,1 @@
+ALTER TABLE "user_preferences" ALTER COLUMN "user_id" SET DATA TYPE text;

@@ -15,6 +15,20 @@
       "when": 1761253156225,
       "tag": "0001_glorious_spyke",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1761254928218,
+      "tag": "0002_fresh_stepford_cuckoos",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1761255250039,
+      "tag": "0003_sloppy_living_lightning",
+      "breakpoints": true
     }
   ]
 }

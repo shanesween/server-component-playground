@@ -1,49 +1,49 @@
 import { pgTable, text, integer, timestamp, boolean, serial, varchar, unique } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
-// Users table (updated for OAuth support)
+// Users table (NextAuth compatible)
 export const users = pgTable('users', {
-  id: serial('id').primaryKey(),
-  email: varchar('email', { length: 255 }).notNull().unique(),
-  password: text('password'), // Made optional for OAuth users
+  id: text('id').primaryKey(),
+  name: text('name'),
+  email: text('email').notNull().unique(),
+  emailVerified: timestamp('email_verified'),
+  image: text('image'),
+  password: text('password'), // For custom auth
   firstName: varchar('first_name', { length: 100 }),
   lastName: varchar('last_name', { length: 100 }),
-  image: text('image'), // For OAuth profile pictures
-  emailVerified: timestamp('email_verified'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
-// OAuth Accounts table
+// OAuth Accounts table (NextAuth compatible)
 export const accounts = pgTable('accounts', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
-  type: varchar('type', { length: 50 }).notNull(), // 'oauth', 'email'
-  provider: varchar('provider', { length: 50 }).notNull(), // 'google', 'credentials'
-  providerAccountId: varchar('provider_account_id', { length: 255 }).notNull(),
-  refreshToken: text('refresh_token'),
-  accessToken: text('access_token'),
-  expiresAt: integer('expires_at'),
-  tokenType: varchar('token_type', { length: 50 }),
-  scope: varchar('scope', { length: 255 }),
-  idToken: text('id_token'),
-  sessionState: varchar('session_state', { length: 255 }),
+  id: text('id').primaryKey(),
+  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  type: text('type').notNull(),
+  provider: text('provider').notNull(),
+  providerAccountId: text('provider_account_id').notNull(),
+  refresh_token: text('refresh_token'),
+  access_token: text('access_token'),
+  expires_at: integer('expires_at'),
+  token_type: text('token_type'),
+  scope: text('scope'),
+  id_token: text('id_token'),
+  session_state: text('session_state'),
 }, (table) => ([
   unique().on(table.provider, table.providerAccountId),
 ]));
 
-// Sessions table
+// Sessions table (NextAuth compatible)
 export const sessions = pgTable('sessions', {
-  id: serial('id').primaryKey(),
-  sessionToken: varchar('session_token', { length: 255 }).notNull().unique(),
-  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  sessionToken: text('session_token').primaryKey(),
+  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   expires: timestamp('expires').notNull(),
 });
 
-// Verification tokens table
+// Verification tokens table (NextAuth compatible)
 export const verificationTokens = pgTable('verification_tokens', {
-  identifier: varchar('identifier', { length: 255 }).notNull(),
-  token: varchar('token', { length: 255 }).notNull(),
+  identifier: text('identifier').notNull(),
+  token: text('token').notNull(),
   expires: timestamp('expires').notNull(),
 }, (table) => ([
   unique().on(table.identifier, table.token),
@@ -85,7 +85,7 @@ export const userToTeam = pgTable('user_to_team', {
 // User preferences table
 export const userPreferences = pgTable('user_preferences', {
   id: serial('id').primaryKey(),
-  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull().unique(),
+  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull().unique(),
   defaultSport: varchar('default_sport', { length: 20 }).default('nfl'),
   notificationsEnabled: boolean('notifications_enabled').default(true),
   gameStartNotifications: boolean('game_start_notifications').default(true),

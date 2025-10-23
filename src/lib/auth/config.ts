@@ -33,9 +33,12 @@ export const authConfig: NextAuthConfig = {
     },
     pages: {
         signIn: "/auth/signin",
-        signUp: "/auth/signup",
+        // Note: NextAuth doesn't have a built-in signUp page option,
+        // but we handle it through our custom /auth/signup page
     },
     session: {
         strategy: "database",
     },
+    // Environment-specific configuration
+    debug: process.env.NODE_ENV === "development",
 };

@@ -14,7 +14,7 @@ export interface SignInRequest {
 }
 
 export interface AuthUser {
-  id: number;
+  id: string;
   email: string;
   firstName: string;
   lastName: string;
@@ -49,10 +49,14 @@ export async function signUp(request: SignUpRequest): Promise<APIResponse<AuthUs
 
     // Hash password and create user
     const hashedPassword = await hashPassword(request.password);
-    
+
+    // Generate a unique ID for the user
+    const userId = crypto.randomUUID();
+
     const [newUser] = await db
       .insert(users)
       .values({
+        id: userId,
         email: request.email.toLowerCase(),
         password: hashedPassword,
         firstName: request.firstName.trim(),
@@ -74,11 +78,19 @@ export async function signUp(request: SignUpRequest): Promise<APIResponse<AuthUs
     await setAuthCookie({
       userId: newUser.id,
       email: newUser.email,
-      firstName: newUser.firstName,
-      lastName: newUser.lastName,
+      firstName: newUser.firstName || '',
+      lastName: newUser.lastName || '',
     });
 
-    return { success: true, data: newUser };
+    return {
+      success: true,
+      data: {
+        id: newUser.id,
+        email: newUser.email,
+        firstName: newUser.firstName || '',
+        lastName: newUser.lastName || '',
+      }
+    };
   } catch (error) {
     console.error('Sign up error:', error);
     return { success: false, error: 'Failed to create account' };
@@ -114,6 +126,10 @@ export async function signIn(request: SignInRequest): Promise<APIResponse<AuthUs
     }
 
     // Verify password
+    if (!user.password) {
+      return { success: false, error: 'Invalid email or password' };
+    }
+
     const isPasswordValid = await verifyPassword(request.password, user.password);
     if (!isPasswordValid) {
       return { success: false, error: 'Invalid email or password' };
@@ -123,8 +139,8 @@ export async function signIn(request: SignInRequest): Promise<APIResponse<AuthUs
     await setAuthCookie({
       userId: user.id,
       email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
+      firstName: user.firstName || '',
+      lastName: user.lastName || '',
     });
 
     return {
@@ -132,8 +148,8 @@ export async function signIn(request: SignInRequest): Promise<APIResponse<AuthUs
       data: {
         id: user.id,
         email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
       },
     };
   } catch (error) {
@@ -169,7 +185,14 @@ export async function getUser(): Promise<AuthUser | null> {
       .where(eq(users.id, tokenPayload.userId))
       .limit(1);
 
-    return user || null;
+    if (!user) return null;
+
+    return {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName || '',
+      lastName: user.lastName || '',
+    };
   } catch (error) {
     console.error('Get user error:', error);
     return null;
