@@ -77,10 +77,10 @@ export default function LearningHome() {
             className="bg-indigo-50 hover:bg-indigo-100 p-6 rounded-lg border border-indigo-200 transition-colors"
           >
             <h2 className="text-xl font-semibold text-indigo-800 mb-2">
-              🗄️ Database & Authentication
+              📱 Phone Authentication
             </h2>
             <p className="text-indigo-600">
-              Learn modern database architecture with Neon DB, Drizzle ORM, and dual authentication systems.
+              Learn phone number authentication with SMS magic codes, user onboarding, and modern database architecture.
             </p>
           </Link>
         </div>

@@ -10,7 +10,7 @@ const TOKEN_EXPIRY = '7d'; // 7 days
 
 export interface AuthTokenPayload {
   userId: string;
-  email: string;
+  phoneNumber: string;
   firstName: string;
   lastName: string;
   iat?: number;
@@ -32,12 +32,12 @@ export async function verifyToken(token: string): Promise<AuthTokenPayload | nul
     // Type guard to ensure the payload has our expected structure
     if (payload && typeof payload === 'object' &&
       'userId' in payload &&
-      'email' in payload &&
+      'phoneNumber' in payload &&
       'firstName' in payload &&
       'lastName' in payload) {
       return {
         userId: payload.userId as string,
-        email: payload.email as string,
+        phoneNumber: payload.phoneNumber as string,
         firstName: payload.firstName as string,
         lastName: payload.lastName as string,
         iat: payload.iat as number,

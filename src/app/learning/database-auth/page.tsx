@@ -30,10 +30,10 @@ export default function DatabaseAuthLearning() {
         <div className="max-w-6xl mx-auto p-8">
             <div className="mb-12">
                 <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-                    🗄️ Database & Authentication Architecture
+                    📱 Phone Number Authentication System
                 </h1>
                 <p className="text-lg text-gray-600 dark:text-gray-400">
-                    Learn how we built a modern, type-safe database architecture with dual authentication systems.
+                    Learn how we built a seamless phone number authentication system with SMS verification and user onboarding.
                 </p>
             </div>
 
@@ -57,13 +57,13 @@ export default function DatabaseAuthLearning() {
                         </div>
                         <div>
                             <h3 className="text-lg font-semibold mb-3 text-purple-800 dark:text-purple-200">
-                                Authentication Layer
+                                Phone Authentication Layer
                             </h3>
                             <ul className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
-                                <li>• <strong>Custom JWT</strong> - Email/password authentication</li>
-                                <li>• <strong>NextAuth.js</strong> - Google OAuth integration</li>
-                                <li>• <strong>Unified User Model</strong> - Single database schema</li>
-                                <li>• <strong>Session Management</strong> - Secure cookie handling</li>
+                                <li>• <strong>SMS Magic Codes</strong> - 6-digit verification codes</li>
+                                <li>• <strong>Phone Number Formatting</strong> - E.164 international format</li>
+                                <li>• <strong>Rate Limiting</strong> - Prevent SMS spam and abuse</li>
+                                <li>• <strong>Onboarding Wizard</strong> - First-time user experience</li>
                             </ul>
                         </div>
                     </div>
@@ -127,8 +127,13 @@ export default function DatabaseAuthLearning() {
                                 <span className="font-medium">Authenticated</span>
                             </div>
                             <p className="text-sm text-gray-600 dark:text-gray-400">
-                                Welcome, {user?.name || user?.email}! You're signed in via {user?.email ? 'NextAuth' : 'Custom JWT'}.
+                                Welcome, {user?.name || user?.phoneNumber}! You're signed in via phone number authentication.
                             </p>
+                            {user?.phoneNumber && (
+                                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                                    Phone: {user.phoneNumber}
+                                </p>
+                            )}
                         </div>
                     ) : (
                         <div className="bg-yellow-50 border border-yellow-200 dark:bg-yellow-900/20 p-4 rounded-lg">
@@ -158,7 +163,7 @@ export default function DatabaseAuthLearning() {
                             <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded">
                                 <div className="font-medium text-sm">users</div>
                                 <div className="text-sm text-gray-600 dark:text-gray-400">
-                                    id, email, name, image, emailVerified, password
+                                    id, phoneNumber, phoneVerified, firstName, lastName, onboardingCompleted
                                 </div>
                             </div>
                             <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded">
@@ -171,6 +176,12 @@ export default function DatabaseAuthLearning() {
                                 <div className="font-medium text-sm">sessions</div>
                                 <div className="text-sm text-gray-600 dark:text-gray-400">
                                     NextAuth session management
+                                </div>
+                            </div>
+                            <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded">
+                                <div className="font-medium text-sm">sms_verification_codes</div>
+                                <div className="text-sm text-gray-600 dark:text-gray-400">
+                                    SMS magic codes with rate limiting
                                 </div>
                             </div>
                         </div>
@@ -226,18 +237,25 @@ export const db = drizzle(sql, { schema });`}
                         </pre>
                     </div>
 
-                    {/* JWT Authentication */}
+                    {/* Phone Authentication */}
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border">
                         <h3 className="text-lg font-semibold mb-4 text-purple-800 dark:text-purple-200">
-                            JWT Token Creation
+                            Phone Number Verification
                         </h3>
                         <pre className="bg-gray-100 dark:bg-gray-900 p-4 rounded-lg overflow-x-auto text-sm">
-                            {`export async function createToken(payload: AuthTokenPayload): Promise<string> {
-  return new SignJWT(payload)
-    .setProtectedHeader({ alg: 'HS256' })
-    .setIssuedAt()
-    .setExpirationTime('7d')
-    .sign(JWT_SECRET);
+                            {`// Send SMS verification code
+export async function sendCode(phoneNumber: string) {
+  const code = generateCode(); // 6-digit code
+  const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+  
+  await db.insert(smsVerificationCodes).values({
+    phoneNumber: formatPhoneNumber(phoneNumber),
+    code,
+    expiresAt,
+  });
+  
+  // Send SMS via Twilio/AWS SNS
+  await sendSMS(phoneNumber, code);
 }`}
                         </pre>
                     </div>
@@ -245,23 +263,20 @@ export const db = drizzle(sql, { schema });`}
                     {/* User Creation */}
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border">
                         <h3 className="text-lg font-semibold mb-4 text-green-800 dark:text-green-200">
-                            User Creation with Type Safety
+                            Phone-First User Creation
                         </h3>
                         <pre className="bg-gray-100 dark:bg-gray-900 p-4 rounded-lg overflow-x-auto text-sm">
                             {`const [newUser] = await db
   .insert(users)
   .values({
-    id: crypto.randomUUID(),
-    email: request.email.toLowerCase(),
-    password: hashedPassword,
-    firstName: request.firstName.trim(),
-    lastName: request.lastName.trim(),
+    phoneNumber: formatPhoneNumber(phoneNumber),
+    phoneVerified: true,
+    onboardingCompleted: false,
   })
   .returning({
     id: users.id,
-    email: users.email,
-    firstName: users.firstName,
-    lastName: users.lastName,
+    phoneNumber: users.phoneNumber,
+    onboardingCompleted: users.onboardingCompleted,
   });`}
                         </pre>
                     </div>
@@ -294,6 +309,10 @@ export const db = drizzle(sql, { schema });`}
                             <span className="font-mono text-sm">0003_sloppy_living_lightning.sql</span>
                             <span className="text-xs text-gray-500">Foreign key updates</span>
                         </div>
+                        <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded">
+                            <span className="font-mono text-sm">0006_lush_tag.sql</span>
+                            <span className="text-xs text-gray-500">Phone authentication schema</span>
+                        </div>
                     </div>
                     <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded">
                         <p className="text-sm text-gray-700 dark:text-gray-300">
@@ -324,13 +343,13 @@ export const db = drizzle(sql, { schema });`}
 
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border">
                         <h3 className="text-lg font-semibold mb-4 text-purple-800 dark:text-purple-200">
-                            Authentication Patterns
+                            Phone Authentication Patterns
                         </h3>
                         <ul className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
-                            <li>• <strong>Dual authentication</strong> - JWT + OAuth</li>
-                            <li>• <strong>Unified user model</strong> for both auth methods</li>
-                            <li>• <strong>Type-safe tokens</strong> with proper validation</li>
-                            <li>• <strong>Session management</strong> with secure cookies</li>
+                            <li>• <strong>SMS magic codes</strong> - No passwords required</li>
+                            <li>• <strong>Phone number formatting</strong> - E.164 international standard</li>
+                            <li>• <strong>Rate limiting</strong> - Prevent SMS abuse and spam</li>
+                            <li>• <strong>Onboarding flow</strong> - Seamless first-time user experience</li>
                         </ul>
                     </div>
                 </div>
@@ -347,27 +366,27 @@ export const db = drizzle(sql, { schema });`}
                     </h3>
                     <div className="grid md:grid-cols-2 gap-4">
                         <div className="bg-white dark:bg-gray-800 p-4 rounded border">
-                            <h4 className="font-semibold mb-2">🔧 Environment Setup</h4>
+                            <h4 className="font-semibold mb-2">📱 SMS Integration</h4>
                             <p className="text-sm text-gray-600 dark:text-gray-400">
-                                Configure production environment variables for Neon DB and OAuth
+                                Integrate Twilio or AWS SNS for production SMS delivery
                             </p>
                         </div>
                         <div className="bg-white dark:bg-gray-800 p-4 rounded border">
                             <h4 className="font-semibold mb-2">🔐 Security Hardening</h4>
                             <p className="text-sm text-gray-600 dark:text-gray-400">
-                                Implement rate limiting, CSRF protection, and security headers
+                                Implement SMS rate limiting, code expiration, and abuse prevention
                             </p>
                         </div>
                         <div className="bg-white dark:bg-gray-800 p-4 rounded border">
                             <h4 className="font-semibold mb-2">📊 Monitoring</h4>
                             <p className="text-sm text-gray-600 dark:text-gray-400">
-                                Add database monitoring and authentication analytics
+                                Add SMS delivery monitoring and phone auth analytics
                             </p>
                         </div>
                         <div className="bg-white dark:bg-gray-800 p-4 rounded border">
                             <h4 className="font-semibold mb-2">🧪 Testing</h4>
                             <p className="text-sm text-gray-600 dark:text-gray-400">
-                                Implement comprehensive auth and database integration tests
+                                Implement phone auth flow testing and SMS mock services
                             </p>
                         </div>
                     </div>

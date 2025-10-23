@@ -1,23 +1,28 @@
 import { pgTable, text, integer, timestamp, boolean, serial, varchar, unique } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
 
-// Users table (NextAuth compatible)
+// Users table - Phone-first authentication (NextAuth compatible)
 export const users = pgTable('users', {
-  id: text('id').primaryKey(),
-  name: text('name'),
-  email: text('email').notNull().unique(),
-  emailVerified: timestamp('email_verified'),
-  image: text('image'),
-  password: text('password'), // For custom auth
+  id: text('id').primaryKey().$defaultFn(() => nanoid()),
+  name: text('name'), // NextAuth required field
+  email: text('email').unique(), // NextAuth required field (optional for phone auth)
+  emailVerified: timestamp('email_verified'), // NextAuth required field
+  image: text('image'), // NextAuth required field
+  phoneNumber: varchar('phone_number', { length: 20 }).unique(), // E.164 format
+  phoneVerified: boolean('phone_verified').default(false),
   firstName: varchar('first_name', { length: 100 }),
   lastName: varchar('last_name', { length: 100 }),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  displayName: varchar('display_name', { length: 100 }), // Computed: firstName + lastName
+  onboardingCompleted: boolean('onboarding_completed').default(false),
+  lastSignIn: timestamp('last_sign_in'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
-// OAuth Accounts table (NextAuth compatible)
+// OAuth Accounts table (NextAuth compatible) - kept for NextAuth compatibility
 export const accounts = pgTable('accounts', {
-  id: text('id').primaryKey(),
+  id: text('id').primaryKey().$defaultFn(() => nanoid()),
   userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   type: text('type').notNull(),
   provider: text('provider').notNull(),
@@ -35,7 +40,7 @@ export const accounts = pgTable('accounts', {
 
 // Sessions table (NextAuth compatible)
 export const sessions = pgTable('sessions', {
-  sessionToken: text('session_token').primaryKey(),
+  sessionToken: text('session_token').primaryKey().$defaultFn(() => nanoid()),
   userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   expires: timestamp('expires').notNull(),
 });
@@ -43,10 +48,25 @@ export const sessions = pgTable('sessions', {
 // Verification tokens table (NextAuth compatible)
 export const verificationTokens = pgTable('verification_tokens', {
   identifier: text('identifier').notNull(),
-  token: text('token').notNull(),
+  token: text('token').notNull().$defaultFn(() => nanoid()),
   expires: timestamp('expires').notNull(),
 }, (table) => ([
   unique().on(table.identifier, table.token),
+]));
+
+// SMS verification codes table - Optimized for UX
+export const smsVerificationCodes = pgTable('sms_verification_codes', {
+  id: serial('id').primaryKey(),
+  phoneNumber: varchar('phone_number', { length: 20 }).notNull(),
+  code: varchar('code', { length: 6 }).notNull(), // 6-digit code
+  attempts: integer('attempts').default(0),
+  maxAttempts: integer('max_attempts').default(3), // Rate limiting
+  expiresAt: timestamp('expires_at').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  verifiedAt: timestamp('verified_at'),
+  ipAddress: varchar('ip_address', { length: 45 }), // For rate limiting
+}, (table) => ([
+  unique().on(table.phoneNumber, table.code),
 ]));
 
 // Teams table (supports multiple sports)
@@ -74,7 +94,7 @@ export const teams = pgTable('teams', {
 // UserToTeam relational table (favorites)
 export const userToTeam = pgTable('user_to_team', {
   id: serial('id').primaryKey(),
-  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   teamId: integer('team_id').references(() => teams.id, { onDelete: 'cascade' }).notNull(),
   sport: varchar('sport', { length: 20 }).notNull(),
   favoritedAt: timestamp('favorited_at').defaultNow().notNull(),
@@ -123,16 +143,10 @@ export const usersRelations = relations(users, ({ many, one }) => ({
     fields: [users.id],
     references: [userPreferences.userId],
   }),
-  accounts: many(accounts),
   sessions: many(sessions),
 }));
 
-export const accountsRelations = relations(accounts, ({ one }) => ({
-  user: one(users, {
-    fields: [accounts.userId],
-    references: [users.id],
-  }),
-}));
+// Note: Accounts relations removed - using phone-only authentication
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({
   user: one(users, {
@@ -182,14 +196,16 @@ export const gamesCacheRelations = relations(gamesCache, ({ one }) => ({
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 
-export type Account = typeof accounts.$inferSelect;
-export type NewAccount = typeof accounts.$inferInsert;
+// Note: Account types removed - using phone-only authentication
 
 export type Session = typeof sessions.$inferSelect;
 export type NewSession = typeof sessions.$inferInsert;
 
 export type VerificationToken = typeof verificationTokens.$inferSelect;
 export type NewVerificationToken = typeof verificationTokens.$inferInsert;
+
+export type SmsVerificationCode = typeof smsVerificationCodes.$inferSelect;
+export type NewSmsVerificationCode = typeof smsVerificationCodes.$inferInsert;
 
 export type Team = typeof teams.$inferSelect;
 export type NewTeam = typeof teams.$inferInsert;

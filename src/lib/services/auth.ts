@@ -1,144 +1,67 @@
 import { eq } from 'drizzle-orm';
 import { db, users, userPreferences } from '@/lib/db';
-import { hashPassword, verifyPassword, validatePassword, validateEmail } from '@/lib/auth/password';
 import { setAuthCookie, removeAuthCookie, getCurrentUser } from '@/lib/auth/jwt';
-import type { APIResponse, CreateUserRequest } from '@/lib/db/types';
+import type { APIResponse } from '@/lib/db/types';
 
-export interface SignUpRequest extends CreateUserRequest {
-  password: string;
-}
-
-export interface SignInRequest {
-  email: string;
-  password: string;
+export interface PhoneAuthRequest {
+  phoneNumber: string;
+  code: string;
 }
 
 export interface AuthUser {
   id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
+  phoneNumber: string;
+  firstName?: string;
+  lastName?: string;
+  displayName?: string;
+  onboardingCompleted: boolean;
 }
 
-export async function signUp(request: SignUpRequest): Promise<APIResponse<AuthUser>> {
-  try {
-    // Validate input
-    if (!validateEmail(request.email)) {
-      return { success: false, error: 'Invalid email format' };
-    }
+// Format phone number to E.164 format
+function formatPhoneNumber(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
 
-    const passwordValidation = validatePassword(request.password);
-    if (!passwordValidation.isValid) {
-      return { success: false, error: passwordValidation.errors.join(', ') };
-    }
-
-    if (!request.firstName.trim() || !request.lastName.trim()) {
-      return { success: false, error: 'First name and last name are required' };
-    }
-
-    // Check if user already exists
-    const existingUser = await db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.email, request.email.toLowerCase()))
-      .limit(1);
-
-    if (existingUser.length > 0) {
-      return { success: false, error: 'An account with this email already exists' };
-    }
-
-    // Hash password and create user
-    const hashedPassword = await hashPassword(request.password);
-
-    // Generate a unique ID for the user
-    const userId = crypto.randomUUID();
-
-    const [newUser] = await db
-      .insert(users)
-      .values({
-        id: userId,
-        email: request.email.toLowerCase(),
-        password: hashedPassword,
-        firstName: request.firstName.trim(),
-        lastName: request.lastName.trim(),
-      })
-      .returning({
-        id: users.id,
-        email: users.email,
-        firstName: users.firstName,
-        lastName: users.lastName,
-      });
-
-    // Create default user preferences
-    await db.insert(userPreferences).values({
-      userId: newUser.id,
-    });
-
-    // Set auth cookie
-    await setAuthCookie({
-      userId: newUser.id,
-      email: newUser.email,
-      firstName: newUser.firstName || '',
-      lastName: newUser.lastName || '',
-    });
-
-    return {
-      success: true,
-      data: {
-        id: newUser.id,
-        email: newUser.email,
-        firstName: newUser.firstName || '',
-        lastName: newUser.lastName || '',
-      }
-    };
-  } catch (error) {
-    console.error('Sign up error:', error);
-    return { success: false, error: 'Failed to create account' };
+  if (digits.length === 10) {
+    return `+1${digits}`;
   }
+
+  if (digits.startsWith('1') && digits.length === 11) {
+    return `+${digits}`;
+  }
+
+  if (phone.startsWith('+')) {
+    return phone;
+  }
+
+  return `+1${digits}`;
 }
 
-export async function signIn(request: SignInRequest): Promise<APIResponse<AuthUser>> {
+export async function verifyPhoneCode(request: PhoneAuthRequest): Promise<APIResponse<AuthUser>> {
   try {
-    // Validate input
-    if (!validateEmail(request.email)) {
-      return { success: false, error: 'Invalid email format' };
-    }
+    const formattedPhone = formatPhoneNumber(request.phoneNumber);
 
-    if (!request.password) {
-      return { success: false, error: 'Password is required' };
-    }
-
-    // Find user
+    // Find user by phone number
     const [user] = await db
       .select({
         id: users.id,
-        email: users.email,
-        password: users.password,
+        phoneNumber: users.phoneNumber,
         firstName: users.firstName,
         lastName: users.lastName,
+        displayName: users.displayName,
+        onboardingCompleted: users.onboardingCompleted,
       })
       .from(users)
-      .where(eq(users.email, request.email.toLowerCase()))
+      .where(eq(users.phoneNumber, formattedPhone))
       .limit(1);
 
     if (!user) {
-      return { success: false, error: 'Invalid email or password' };
-    }
-
-    // Verify password
-    if (!user.password) {
-      return { success: false, error: 'Invalid email or password' };
-    }
-
-    const isPasswordValid = await verifyPassword(request.password, user.password);
-    if (!isPasswordValid) {
-      return { success: false, error: 'Invalid email or password' };
+      return { success: false, error: 'User not found' };
     }
 
     // Set auth cookie
     await setAuthCookie({
       userId: user.id,
-      email: user.email,
+      phoneNumber: user.phoneNumber || '',
       firstName: user.firstName || '',
       lastName: user.lastName || '',
     });
@@ -147,14 +70,70 @@ export async function signIn(request: SignInRequest): Promise<APIResponse<AuthUs
       success: true,
       data: {
         id: user.id,
-        email: user.email,
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-      },
+        phoneNumber: user.phoneNumber || '',
+        firstName: user.firstName || undefined,
+        lastName: user.lastName || undefined,
+        displayName: user.displayName || undefined,
+        onboardingCompleted: user.onboardingCompleted || false,
+      }
     };
   } catch (error) {
-    console.error('Sign in error:', error);
-    return { success: false, error: 'Failed to sign in' };
+    console.error('Phone verification error:', error);
+    return { success: false, error: 'Failed to verify phone number' };
+  }
+}
+
+export async function createUserFromPhone(phoneNumber: string): Promise<APIResponse<AuthUser>> {
+  try {
+    const formattedPhone = formatPhoneNumber(phoneNumber);
+
+    // Check if user already exists
+    const existingUser = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.phoneNumber, formattedPhone))
+      .limit(1);
+
+    if (existingUser.length > 0) {
+      return { success: false, error: 'User already exists' };
+    }
+
+    // Create new user
+    const [newUser] = await db
+      .insert(users)
+      .values({
+        phoneNumber: formattedPhone,
+        phoneVerified: true,
+        onboardingCompleted: false,
+      })
+      .returning({
+        id: users.id,
+        phoneNumber: users.phoneNumber,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        displayName: users.displayName,
+        onboardingCompleted: users.onboardingCompleted,
+      });
+
+    // Create default user preferences
+    await db.insert(userPreferences).values({
+      userId: newUser.id,
+    });
+
+    return {
+      success: true,
+      data: {
+        id: newUser.id,
+        phoneNumber: newUser.phoneNumber || '',
+        firstName: newUser.firstName || undefined,
+        lastName: newUser.lastName || undefined,
+        displayName: newUser.displayName || undefined,
+        onboardingCompleted: newUser.onboardingCompleted || false,
+      }
+    };
+  } catch (error) {
+    console.error('Create user error:', error);
+    return { success: false, error: 'Failed to create user' };
   }
 }
 
@@ -177,9 +156,11 @@ export async function getUser(): Promise<AuthUser | null> {
     const [user] = await db
       .select({
         id: users.id,
-        email: users.email,
+        phoneNumber: users.phoneNumber,
         firstName: users.firstName,
         lastName: users.lastName,
+        displayName: users.displayName,
+        onboardingCompleted: users.onboardingCompleted,
       })
       .from(users)
       .where(eq(users.id, tokenPayload.userId))
@@ -189,9 +170,11 @@ export async function getUser(): Promise<AuthUser | null> {
 
     return {
       id: user.id,
-      email: user.email,
-      firstName: user.firstName || '',
-      lastName: user.lastName || '',
+      phoneNumber: user.phoneNumber || '',
+      firstName: user.firstName || undefined,
+      lastName: user.lastName || undefined,
+      displayName: user.displayName || undefined,
+      onboardingCompleted: user.onboardingCompleted || false,
     };
   } catch (error) {
     console.error('Get user error:', error);
