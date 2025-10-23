@@ -1,7 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { smsVerificationCodes } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
 
 /**
  * Twilio status callback endpoint

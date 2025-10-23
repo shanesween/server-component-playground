@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useRequireAuth } from '@/hooks/use-auth';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
@@ -11,10 +12,11 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ArrowRight, ArrowLeft, Check } from 'lucide-react';
 
 const nameSchema = z.object({
     firstName: z.string().min(1, 'First name is required'),
-    lastName: z.string().min(1, 'Last name is required'),
 });
 
 const teamSchema = z.object({
@@ -24,28 +26,32 @@ const teamSchema = z.object({
 type NameFormValues = z.infer<typeof nameSchema>;
 type TeamFormValues = z.infer<typeof teamSchema>;
 
-// Mock teams data - in production, this would come from your database
-const mockTeams = [
-    { id: '1', name: 'Kansas City Chiefs', sport: 'NFL', city: 'Kansas City' },
-    { id: '2', name: 'Buffalo Bills', sport: 'NFL', city: 'Buffalo' },
-    { id: '3', name: 'Dallas Cowboys', sport: 'NFL', city: 'Dallas' },
-    { id: '4', name: 'New York Yankees', sport: 'MLB', city: 'New York' },
-    { id: '5', name: 'Boston Red Sox', sport: 'MLB', city: 'Boston' },
-    { id: '6', name: 'Los Angeles Lakers', sport: 'NBA', city: 'Los Angeles' },
-];
+interface NFLTeam {
+    id: number;
+    name: string;
+    city: string;
+    fullName: string;
+    abbreviation: string;
+    primaryColor: string;
+    secondaryColor: string;
+    conference: string;
+    division: string;
+}
 
 export default function OnboardingPage() {
     const router = useRouter();
-    const [step, setStep] = useState<'name' | 'teams'>('name');
+    const { user, loading } = useRequireAuth();
+    const [step, setStep] = useState<'welcome' | 'name' | 'teams'>('welcome');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
+    const [selectedTeams, setSelectedTeams] = useState<number[]>([]);
+    const [nflTeams, setNflTeams] = useState<NFLTeam[]>([]);
+    const [firstName, setFirstName] = useState('');
 
     const nameForm = useForm<NameFormValues>({
         resolver: zodResolver(nameSchema),
         defaultValues: {
             firstName: '',
-            lastName: '',
         },
     });
 
@@ -56,34 +62,25 @@ export default function OnboardingPage() {
         },
     });
 
-    const onNameSubmit = async (values: NameFormValues) => {
-        setIsLoading(true);
-        setError(null);
-
-        try {
-            // Update user profile
-            const response = await fetch('/api/user/profile', {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    firstName: values.firstName,
-                    lastName: values.lastName,
-                    displayName: `${values.firstName} ${values.lastName}`,
-                }),
-            });
-
-            if (response.ok) {
-                setStep('teams');
-            } else {
-                setError('Failed to save name');
+    // Fetch NFL teams on component mount
+    useEffect(() => {
+        const fetchTeams = async () => {
+            try {
+                const response = await fetch('/api/seed/nfl-teams');
+                const data = await response.json();
+                if (data.success) {
+                    setNflTeams(data.teams);
+                }
+            } catch (error) {
+                console.error('Error fetching NFL teams:', error);
             }
-        } catch (error) {
-            setError('An unexpected error occurred');
-        } finally {
-            setIsLoading(false);
-        }
+        };
+        fetchTeams();
+    }, []);
+
+    const onNameSubmit = async (values: NameFormValues) => {
+        setFirstName(values.firstName);
+        setStep('teams');
     };
 
     const onTeamSubmit = async (values: TeamFormValues) => {
@@ -92,7 +89,7 @@ export default function OnboardingPage() {
 
         try {
             // Save favorite teams
-            const response = await fetch('/api/user/favorite-teams', {
+            const response = await fetch('/api/onboarding/teams', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -104,8 +101,14 @@ export default function OnboardingPage() {
 
             if (response.ok) {
                 // Mark onboarding as completed
-                await fetch('/api/user/complete-onboarding', {
+                await fetch('/api/onboarding/complete', {
                     method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        firstName: firstName,
+                    }),
                 });
 
                 router.push('/');
@@ -119,7 +122,7 @@ export default function OnboardingPage() {
         }
     };
 
-    const toggleTeam = (teamId: string) => {
+    const toggleTeam = (teamId: number) => {
         setSelectedTeams(prev =>
             prev.includes(teamId)
                 ? prev.filter(id => id !== teamId)
@@ -127,23 +130,94 @@ export default function OnboardingPage() {
         );
     };
 
+    const getStepProgress = () => {
+        switch (step) {
+            case 'welcome': return 1;
+            case 'name': return 2;
+            case 'teams': return 3;
+            default: return 1;
+        }
+    };
+
+    const getStepTitle = () => {
+        switch (step) {
+            case 'welcome': return 'Welcome to Strictly Sports!';
+            case 'name': return 'What\'s your name?';
+            case 'teams': return 'Choose your favorite teams';
+            default: return '';
+        }
+    };
+
+    const getStepDescription = () => {
+        switch (step) {
+            case 'welcome': return 'Let\'s get you set up with personalized sports updates';
+            case 'name': return 'We\'ll use this to personalize your experience';
+            case 'teams': return 'Select your favorite NFL teams to get updates';
+            default: return '';
+        }
+    };
+
+    // Group teams by division
+    const groupedTeams = nflTeams.reduce((acc, team) => {
+        const key = `${team.conference} ${team.division}`;
+        if (!acc[key]) {
+            acc[key] = [];
+        }
+        acc[key].push(team);
+        return acc;
+    }, {} as Record<string, NFLTeam[]>);
+
+    // Show loading state while checking auth
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+                <div className="text-white text-xl">Loading...</div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-            <div className="max-w-2xl w-full mx-4">
+            <div className="max-w-4xl w-full mx-4">
                 <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8">
+                    {/* Progress Indicator */}
+                    <div className="flex items-center justify-center mb-8">
+                        <div className="flex items-center space-x-4">
+                            {[1, 2, 3].map((stepNumber) => (
+                                <div key={stepNumber} className="flex items-center">
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                                        stepNumber <= getStepProgress()
+                                            ? 'bg-blue-500 text-white'
+                                            : 'bg-white/20 text-white/50'
+                                    }`}>
+                                        {stepNumber < getStepProgress() ? (
+                                            <Check className="w-4 h-4" />
+                                        ) : (
+                                            stepNumber
+                                        )}
+                                    </div>
+                                    {stepNumber < 3 && (
+                                        <div className={`w-8 h-0.5 mx-2 ${
+                                            stepNumber < getStepProgress()
+                                                ? 'bg-blue-500'
+                                                : 'bg-white/20'
+                                        }`} />
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
                     {/* Header */}
                     <div className="text-center mb-8">
-                        <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center mx-auto mb-4">
-                            <span className="text-white font-bold text-xl">S</span>
+                        <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                            <span className="text-white font-bold text-2xl">S</span>
                         </div>
-                        <h1 className="text-2xl font-bold text-white">
-                            {step === 'name' ? 'Welcome!' : 'Choose Your Teams'}
+                        <h1 className="text-3xl font-bold text-white mb-2">
+                            {getStepTitle()}
                         </h1>
-                        <p className="text-white/70 mt-2">
-                            {step === 'name'
-                                ? 'Let\'s set up your profile'
-                                : 'Select your favorite teams to get personalized updates'
-                            }
+                        <p className="text-white/70 text-lg">
+                            {getStepDescription()}
                         </p>
                     </div>
 
@@ -154,55 +228,69 @@ export default function OnboardingPage() {
                         </Alert>
                     )}
 
+                    {/* Welcome Step */}
+                    {step === 'welcome' && (
+                        <div className="text-center space-y-6">
+                            <div className="space-y-4">
+                                <div className="text-6xl">🏈</div>
+                                <h2 className="text-2xl font-semibold text-white">
+                                    Get ready for the ultimate sports experience!
+                                </h2>
+                                <p className="text-white/70 text-lg">
+                                    We'll personalize your feed with your favorite teams and keep you updated with the latest scores, news, and highlights.
+                                </p>
+                            </div>
+                            <Button
+                                onClick={() => setStep('name')}
+                                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white text-lg py-3"
+                            >
+                                Let's Get Started
+                                <ArrowRight className="ml-2 w-5 h-5" />
+                            </Button>
+                        </div>
+                    )}
+
                     {/* Name Step */}
                     {step === 'name' && (
                         <Form {...nameForm}>
                             <form onSubmit={nameForm.handleSubmit(onNameSubmit)} className="space-y-6">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <FormField
-                                        control={nameForm.control}
-                                        name="firstName"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel className="text-white">First Name</FormLabel>
-                                                <FormControl>
-                                                    <Input
-                                                        {...field}
-                                                        placeholder="John"
-                                                        className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
-                                                    />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
+                                <FormField
+                                    control={nameForm.control}
+                                    name="firstName"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className="text-white text-lg">First Name</FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    {...field}
+                                                    placeholder="Enter your first name"
+                                                    className="bg-white/10 border-white/20 text-white placeholder:text-white/50 text-lg py-3"
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
 
-                                    <FormField
-                                        control={nameForm.control}
-                                        name="lastName"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel className="text-white">Last Name</FormLabel>
-                                                <FormControl>
-                                                    <Input
-                                                        {...field}
-                                                        placeholder="Doe"
-                                                        className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
-                                                    />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
+                                <div className="flex space-x-4">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="flex-1 bg-white/10 border-white/20 text-white hover:bg-white/20"
+                                        onClick={() => setStep('welcome')}
+                                    >
+                                            <ArrowLeft className="mr-2 w-4 h-4" />
+                                            Back
+                                        </Button>
+                                    <Button
+                                        type="submit"
+                                        className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                                        disabled={!nameForm.watch('firstName')}
+                                    >
+                                        Continue
+                                        <ArrowRight className="ml-2 w-4 h-4" />
+                                    </Button>
                                 </div>
-
-                                <Button
-                                    type="submit"
-                                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
-                                    disabled={isLoading}
-                                >
-                                    {isLoading ? 'Saving...' : 'Continue'}
-                                </Button>
                             </form>
                         </Form>
                     )}
@@ -210,50 +298,85 @@ export default function OnboardingPage() {
                     {/* Teams Step */}
                     {step === 'teams' && (
                         <div className="space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {mockTeams.map((team) => (
-                                    <Card
-                                        key={team.id}
-                                        className={`cursor-pointer transition-all ${selectedTeams.includes(team.id)
-                                            ? 'bg-blue-500/20 border-blue-500'
-                                            : 'bg-white/5 border-white/20 hover:bg-white/10'
-                                            }`}
-                                        onClick={() => toggleTeam(team.id)}
-                                    >
-                                        <CardHeader className="pb-2">
-                                            <div className="flex items-center justify-between">
-                                                <CardTitle className="text-white text-lg">{team.name}</CardTitle>
-                                                <Badge variant="secondary" className="bg-white/20 text-white">
-                                                    {team.sport.toUpperCase()}
-                                                </Badge>
-                                            </div>
-                                            <CardDescription className="text-white/70">
-                                                {team.city}
-                                            </CardDescription>
-                                        </CardHeader>
-                                    </Card>
+                            <div className="space-y-6">
+                                {Object.entries(groupedTeams).map(([division, teams]) => (
+                                    <div key={division} className="space-y-3">
+                                        <h3 className="text-white font-semibold text-lg border-b border-white/20 pb-2">
+                                            {division}
+                                        </h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            {teams.map((team) => (
+                                                <Card
+                                                    key={team.id}
+                                                    className={`cursor-pointer transition-all duration-200 ${
+                                                        selectedTeams.includes(team.id)
+                                                            ? 'bg-blue-500/20 border-blue-500 shadow-lg shadow-blue-500/20'
+                                                            : 'bg-white/5 border-white/20 hover:bg-white/10 hover:border-white/30'
+                                                    }`}
+                                                    onClick={() => toggleTeam(team.id)}
+                                                >
+                                                    <CardContent className="p-4">
+                                                        <div className="flex items-center space-x-3">
+                                                            <Checkbox
+                                                                checked={selectedTeams.includes(team.id)}
+                                                                className="data-[state=checked]:bg-blue-500"
+                                                            />
+                                                            <div className="flex-1">
+                                                                <div className="flex items-center justify-between">
+                                                                    <h4 className="text-white font-medium">
+                                                                        {team.fullName}
+                                                                    </h4>
+                                                                    <Badge 
+                                                                        variant="secondary" 
+                                                                        className="bg-white/20 text-white text-xs"
+                                                                    >
+                                                                        {team.abbreviation}
+                                                                    </Badge>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </CardContent>
+                                                </Card>
+                                            ))}
+                                        </div>
+                                    </div>
                                 ))}
                             </div>
 
-                            <Button
-                                onClick={() => {
-                                    teamForm.setValue('favoriteTeams', selectedTeams);
-                                    teamForm.handleSubmit(onTeamSubmit)();
-                                }}
-                                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
-                                disabled={isLoading || selectedTeams.length === 0}
-                            >
-                                {isLoading ? 'Saving...' : `Continue with ${selectedTeams.length} team${selectedTeams.length !== 1 ? 's' : ''}`}
-                            </Button>
+                            <div className="flex space-x-4">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="flex-1 bg-white/10 border-white/20 text-white hover:bg-white/20"
+                                    onClick={() => setStep('name')}
+                                >
+                                    <ArrowLeft className="mr-2 w-4 h-4" />
+                                    Back
+                                </Button>
+                                <Button
+                                    onClick={() => {
+                                        teamForm.setValue('favoriteTeams', selectedTeams.map(String));
+                                        teamForm.handleSubmit(onTeamSubmit)();
+                                    }}
+                                    className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                                    disabled={isLoading || selectedTeams.length === 0}
+                                >
+                                    {isLoading ? (
+                                        'Setting up...'
+                                    ) : (
+                                        <>
+                                            Go To App
+                                            <ArrowRight className="ml-2 w-4 h-4" />
+                                        </>
+                                    )}
+                                </Button>
+                            </div>
 
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="w-full bg-white/10 border-white/20 text-white hover:bg-white/20"
-                                onClick={() => setStep('name')}
-                            >
-                                ← Back to Name
-                            </Button>
+                            {selectedTeams.length > 0 && (
+                                <p className="text-white/70 text-center">
+                                    {selectedTeams.length} team{selectedTeams.length !== 1 ? 's' : ''} selected
+                                </p>
+                            )}
                         </div>
                     )}
                 </div>

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { signIn } from 'next-auth/react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
@@ -75,24 +76,28 @@ export default function SignInPage() {
     setError(null);
 
     try {
-      const response = await fetch('/api/auth/phone/verify-code', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          phoneNumber,
-          code: values.code
-        }),
+      const result = await signIn('phone', {
+        phoneNumber,
+        code: values.code,
+        redirect: false,
       });
 
-      const result = await response.json();
-
-      if (result.success) {
-        router.push('/');
+      if (result?.ok) {
+        // Check if user needs onboarding by fetching user data
+        const userResponse = await fetch('/api/auth/me');
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
+          if (!userData.onboardingCompleted) {
+            router.push('/onboarding');
+          } else {
+            router.push('/');
+          }
+        } else {
+          router.push('/');
+        }
         router.refresh();
       } else {
-        setError(result.error || 'Invalid code');
+        setError(result?.error || 'Invalid code');
       }
     } catch (error) {
       setError('An unexpected error occurred');

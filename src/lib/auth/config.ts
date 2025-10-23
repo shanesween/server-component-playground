@@ -1,6 +1,7 @@
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { db } from "@/lib/db";
 import { users, accounts, sessions, verificationTokens } from "@/lib/db/schema";
+import { phoneProvider } from "./phone-provider";
 import type { NextAuthOptions } from "next-auth";
 
 export const authConfig: NextAuthOptions = {
@@ -11,7 +12,7 @@ export const authConfig: NextAuthOptions = {
         verificationTokensTable: verificationTokens,
     }),
     providers: [
-        // Phone number authentication will be handled via custom API routes
+        phoneProvider,
     ],
     callbacks: {
         async session({ session, user }) {

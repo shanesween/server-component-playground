@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { smsVerificationCodes, users } from '@/lib/db/schema';
 import { eq, and, gt } from 'drizzle-orm';
-import { verifyPhoneCode, createUserFromPhone } from '@/lib/services/auth';
+import { createUserFromPhone } from '@/lib/services/auth';
 import { formatPhoneNumber } from '@/lib/services/sms';
 
 
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Check attempt limit
-        if (record.attempts >= (record.maxAttempts || 3)) {
+        if ((record.attempts ?? 0) >= (record.maxAttempts || 3)) {
             return NextResponse.json(
                 { success: false, error: 'Too many attempts. Please request a new code' },
                 { status: 400 }
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
             .update(smsVerificationCodes)
             .set({
                 verifiedAt: new Date(),
-                attempts: record.attempts + 1
+                attempts: (record.attempts ?? 0) + 1
             })
             .where(eq(smsVerificationCodes.id, record.id));
 
@@ -107,6 +107,13 @@ export async function POST(request: NextRequest) {
                 displayName: existingUser[0].displayName,
                 onboardingCompleted: existingUser[0].onboardingCompleted,
             };
+        }
+
+        if (!user) {
+            return NextResponse.json(
+                { success: false, error: 'Failed to create or retrieve user' },
+                { status: 500 }
+            );
         }
 
         return NextResponse.json({
