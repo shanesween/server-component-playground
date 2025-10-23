@@ -1,6 +1,21 @@
-# Server Components & SSR Playground
+# 🏈 Sports Clone - Next.js 16 Showcase
 
-This is a [Next.js](https://nextjs.org) project designed to help you understand Server Components and Server-Side Rendering concepts through practical examples.
+This is a modern sports application built with Next.js 16, showcasing the latest features including cache components, React Server Components, and real-time data updates. The project includes both a **production sports app** and a **learning laboratory** for understanding Next.js concepts.
+
+## 🎯 Project Structure
+
+### Sports App
+- **NFL Dashboard** - Live scores, team stats, and standings
+- **MLB Dashboard** - Baseball scores and team information  
+- **Mobile-First Design** - Optimized for mobile viewing
+- **Real-time Updates** - Live scores with smart caching
+
+### Learning Lab (`/learning`)
+- **Server Components** - Understanding RSC vs traditional SSR
+- **Client Components** - Interactive components with hooks
+- **Data Fetching** - Server vs client patterns with Suspense
+- **Hydration** - How static HTML becomes interactive
+- **Next.js 16 Features** - Cache components, Turbopack, and more
 
 ## Getting Started
 
