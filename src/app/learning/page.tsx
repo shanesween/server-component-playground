@@ -83,6 +83,30 @@ export default function LearningHome() {
               Learn phone number authentication with SMS magic codes, user onboarding, and modern database architecture.
             </p>
           </Link>
+
+          <Link
+            href="/learning/standalone-scripts"
+            className="bg-emerald-50 hover:bg-emerald-100 p-6 rounded-lg border border-emerald-200 transition-colors"
+          >
+            <h2 className="text-xl font-semibold text-emerald-800 mb-2">
+              🛠️ Standalone Scripts
+            </h2>
+            <p className="text-emerald-600">
+              Build CLI tools and standalone scripts that work without the server, perfect for seeding and automation.
+            </p>
+          </Link>
+
+          <Link
+            href="/learning/real-time-data"
+            className="bg-rose-50 hover:bg-rose-100 p-6 rounded-lg border border-rose-200 transition-colors"
+          >
+            <h2 className="text-xl font-semibold text-rose-800 mb-2">
+              📊 Real-time Data
+            </h2>
+            <p className="text-rose-600">
+              Master real-time data patterns, WebSocket connections, smart caching, and performance optimization.
+            </p>
+          </Link>
         </div>
 
         <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-900 p-8 rounded-lg">

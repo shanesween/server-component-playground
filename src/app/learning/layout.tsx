@@ -20,6 +20,8 @@ export default function LearningLayout({
               <Link href="/learning/data-fetching" className="hover:text-blue-600">Data Fetching</Link>
               <Link href="/learning/hydration" className="hover:text-blue-600">Hydration</Link>
               <Link href="/learning/database-auth" className="hover:text-blue-600">Database & Auth</Link>
+              <Link href="/learning/standalone-scripts" className="hover:text-blue-600">Standalone Scripts</Link>
+              <Link href="/learning/real-time-data" className="hover:text-blue-600">Real-time Data</Link>
             </div>
           </div>
         </div>
