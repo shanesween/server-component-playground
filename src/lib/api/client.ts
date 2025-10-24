@@ -16,7 +16,7 @@ class SportsAPIClient {
 
   private async makeRequest(endpoint: string, options: RequestInit = {}) {
     const url = `${this.baseURL}${endpoint}`;
-    
+
     const response = await fetch(url, {
       ...options,
       headers: {
@@ -40,7 +40,7 @@ class SportsAPIClient {
     tags?: string[];
   } = {}) {
     const { revalidate = 300, tags = [] } = cacheOptions;
-    
+
     return this.makeRequest(endpoint, {
       next: {
         revalidate,
@@ -69,7 +69,7 @@ export async function getTeamById(teamId: string, sport: string) {
   if (!config) throw new Error(`Unknown sport: ${sport}`);
 
   const endpoint = config.apiEndpoints.teamDetails.replace('{teamId}', teamId);
-  
+
   return sportsAPI.getCachedData(endpoint, {
     revalidate: 3600, // 1 hour
     tags: [`team-${teamId}`, `${sport}-teams`],
@@ -97,7 +97,7 @@ export async function getRecentGames(sport: string, days: number = 7) {
   startDate.setDate(endDate.getDate() - days);
 
   const endpoint = `${config.apiEndpoints.games}&from=${startDate.toISOString().split('T')[0]}&to=${endDate.toISOString().split('T')[0]}`;
-  
+
   return sportsAPI.getCachedData(endpoint, {
     revalidate: 60, // 1 minute
     tags: [`${sport}-recent-games`, 'games'],
@@ -109,7 +109,7 @@ export async function getTeamSchedule(teamId: string, sport: string) {
   if (!config) throw new Error(`Unknown sport: ${sport}`);
 
   const endpoint = config.apiEndpoints.schedule.replace('{teamId}', teamId);
-  
+
   return sportsAPI.getCachedData(endpoint, {
     revalidate: 300, // 5 minutes
     tags: [`team-${teamId}-schedule`, `${sport}-schedules`],
@@ -130,24 +130,24 @@ export async function getStandings(sport: string) {
 // Cache invalidation functions
 export async function invalidateTeamData(teamId: string, sport: string) {
   const { revalidateTag } = await import('next/cache');
-  await revalidateTag(`team-${teamId}`);
-  await revalidateTag(`${sport}-teams`);
+  revalidateTag(`team-${teamId}`, 'default');
+  revalidateTag(`${sport}-teams`, 'default');
 }
 
 export async function invalidateStandings(sport: string) {
   const { revalidateTag } = await import('next/cache');
-  await revalidateTag(`${sport}-standings`);
+  revalidateTag(`${sport}-standings`, 'default');
 }
 
 export async function refreshLiveScores() {
   const { revalidateTag } = await import('next/cache');
-  await revalidateTag('live-scores');
+  revalidateTag('live-scores', 'default');
 }
 
 export async function invalidateAllSportData(sport: string) {
   const { revalidateTag } = await import('next/cache');
-  await revalidateTag(`${sport}-teams`);
-  await revalidateTag(`${sport}-standings`);
-  await revalidateTag(`${sport}-live-games`);
-  await revalidateTag(`${sport}-recent-games`);
+  revalidateTag(`${sport}-teams`, 'default');
+  revalidateTag(`${sport}-standings`, 'default');
+  revalidateTag(`${sport}-live-games`, 'default');
+  revalidateTag(`${sport}-recent-games`, 'default');
 }
